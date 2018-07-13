@@ -1,8 +1,6 @@
 ---
 title: "Merging Datasets with dplyr"
-output:
-  html_document:
-    df_print: paged
+output: github_document
 ---
 This notebook is based on the DataCamp course on [Joining Data in R with dplyr](https://www.datacamp.com/courses/joining-data-in-r-with-dplyr). I was having a difficult time retaining all of the information and I knew I would need it in the future, so I recreated the lessons in a truncated fashion to use as a reference for myself in the future. I hope it is useful for you, too, but I highly recommend you still go through the DataCamp course (and all their other courses!) if you're not familiar with the dplyr package or tidyverse. 
 
