@@ -67,8 +67,6 @@ deadlift <- competitorsdistinct %>%
 **Keys**
 ========
 
-------------------------------------------------------------------------
-
 Keys are the columns that are used to match multiple datasets. They are explicitly defined by the argument (by = "varname") within your join function. However, they do not need to be explicitly defined. If you do not explicitly define it, dplyr will join the datasets across all possible keys (i.e., all columns that have the same name across both datasets) and will tell you in the output what variables it joined the datasets by.
 
 For example, we have two datasets: meets and competitors. If we use the `glimpse` function on both datasets, we can see that the key would be "MeetID" because that is the only variable that matches both datasets.
@@ -269,8 +267,6 @@ meets2 %>%
 
 **Types of Joins**
 ==================
-
-------------------------------------------------------------------------
 
 *Mutating joins*
 ----------------
@@ -554,16 +550,16 @@ union(males, females)
     ## # A tibble: 3,516 x 13
     ##    MeetID Name       Sex   Division BodyweightKg WeightClassKg WeightClass
     ##     <int> <chr>      <chr> <chr>           <dbl> <chr>         <chr>      
-    ##  1   7015 Amanda Ri~ Fema~ R-O             103.  84+           7: 84+kg   
-    ##  2   7028 Anthony C~ Male  R-O              92.3 93            5: 93kg    
-    ##  3   7028 Susan Hin~ Fema~ R-M2             84.8 84+           7: 84+kg   
-    ##  4   7015 Eric LaPo~ Male  R-JR             72.9 74            3: 74kg    
-    ##  5   7015 Pete Groh~ Male  R-M1b            95.4 105           6: 105kg   
-    ##  6   7021 Danny Sul~ Male  R-JR             93   93            5: 93kg    
-    ##  7   7021 Stephen C~ Male  R-O              71.5 74            3: 74kg    
-    ##  8   7015 Pomrening~ Fema~ R-O              81.1 84            6: 84kg    
-    ##  9   7021 Mitchell ~ Male  R-JR            102.  105           6: 105kg   
-    ## 10   7015 Thomas Co~ Male  R-O              92.2 93            5: 93kg    
+    ##  1   7021 Adam Mart~ Male  R-O              92.2 93            5: 93kg    
+    ##  2   7015 Zachary J~ Male  R-O              72.6 74            3: 74kg    
+    ##  3   7015 Kathy Kaz~ Fema~ R-M1a            74   84            6: 84kg    
+    ##  4   7015 Samuel Mo~ Male  R-O             119.  120           7: 120kg   
+    ##  5   7021 Jeffrey H~ Male  R-T3             72   74            3: 74kg    
+    ##  6   7021 Joe Vann   Male  R-M1             57.2 59            1: 59kg    
+    ##  7   7015 Blake Atw~ Male  R-O             116.  120           7: 120kg   
+    ##  8   7015 John Haack Male  R-JR             82.4 83            4: 83kg    
+    ##  9   7021 John Down~ Male  R-O              82.8 83            4: 83kg    
+    ## 10   7021 Penny Had~ Fema~ R-M2             61.6 63            4: 63kg    
     ## # ... with 3,506 more rows, and 6 more variables: BestSquatKg <dbl>,
     ## #   BestBenchKg <dbl>, BestDeadliftKg <dbl>, TotalKg <dbl>, Place <chr>,
     ## #   Wilks <dbl>
@@ -734,8 +730,6 @@ Note that now we have a column at the beginning that ID's which dataframe it cam
 
 Missing/Duplicate values/columns
 ================================
-
-------------------------------------------------------------------------
 
 Missing key values
 ------------------
