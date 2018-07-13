@@ -1,0 +1,353 @@
+---
+title: "Merging Datasets with dplyr"
+output: html_document
+---
+This notebook is based on the DataCamp course on [Joining Data in R with dplyr](https://www.datacamp.com/courses/joining-data-in-r-with-dplyr). I was having a difficult time retaining all of the information and I knew I would need it in the future, so I recreated the lessons in a truncated fashion to use as a reference for myself in the future. I hope it is useful for you, too, but I highly recommend you still go through the DataCamp course (and all their other courses!) if you're not familiar with the dplyr package or tidyverse. 
+
+Note: The dplyr join functions can do all of the functions of the `merge` function in base R, but it will also always preserve row order, it has more intuitive syntax, can work with tibbles and tbl references, and can be applied to databases, spark, and more. So use dplyr! See the very end of this document for the comparisons between dplyr mutating joins and `merge`.
+
+##*A quick note about the datasets*
+
+The datasets used in this resource are from a [Kaggle dataset](https://www.kaggle.com/open-powerlifting/powerlifting-database#openpowerlifting.csv). I have cleaned them up slightly in Excel prior to importing here. Notably, I am only analyzing data from the top 3 competitions (those with the most competitors) because of the large file size. This results in data in the competitors dataframe that is from the 2015-2017 USAPL Raw National Championships. I've filtered/selected out sub-dataframes for use in the examples below. 
+
+Why Powerlifting, you might ask? I love powerlifting! I've actually competed once and you can find my data in the full dataset on Kaggle, which is from the [OpenPowerlifting database](https://www.openpowerlifting.org/). I'm not that good, but I enjoy it a lot. I had an injury a while back and never really got fully back into powerlifting, but I felt this would be a fun dataset to use as an example for this resource.
+
+```{r, message = FALSE}
+library(tidyverse) #We are mainly using the dplyr package, but it's part of the tidyverse and we try out purrr later
+
+#Import the datasets
+
+meets_full <- read_csv("meets.csv")
+meets <- read_csv("meets_top3.csv")
+competitors <- read_csv("openpowerlifting_top3.csv", col_types = "icccnccnnnncn")
+
+#Create sub-dataframes
+usapl15 <- competitors %>%
+  filter(MeetID == 7015) #Only competitors in the 2015 USAPL Raw National Championships
+
+usapl16 <- competitors %>%
+  filter(MeetID == 7021) #Only competitors in the 2016 USAPL Raw National Championships
+
+usapl17 <- competitors %>%
+  filter(MeetID == 7028) #Only competitors in the 2017 USAPL Raw National Championships
+
+usapl15_names <- usapl15 %>%
+  select(Name, Sex) %>%
+  distinct() #Only competitors in the 2015 USAPL Raw National Championships; just names/sex
+
+usapl17_names <- usapl17 %>%
+  select(Name, Sex) %>%
+  distinct() #Only competitors in the 2017 USAPL Raw National Championships; just names/sex
+
+females <- competitors %>%
+  filter(Sex == "Female") #All female competitors
+
+males <- competitors %>%
+  filter(Sex == "Male") #All male competitors
+
+peopledata <- competitors %>% #Just the first seven columns
+  select(MeetID, Name, Sex, Division, BodyweightKg, WeightClassKg, WeightClass)
+
+liftingdata <- competitors %>% #Just the last six columns
+  select(BestSquatKg, BestBenchKg, BestDeadliftKg, TotalKg, Place, Wilks)
+
+competitorsdistinct <- competitors %>%
+  distinct(MeetID,Name, .keep_all = TRUE) #Just getting rows for unique people since there are duplicates
+
+squat <- competitorsdistinct %>%
+  select(MeetID, Name, BestSquatKg) #Just squat data for all competitors
+
+bench <- competitorsdistinct %>%
+  select(MeetID, Name, BestBenchKg) #Just bench data for all competitors
+
+deadlift <- competitorsdistinct %>%
+  select(MeetID, Name, BestDeadliftKg) #Just deadlift data for all competitors
+```
+
+#**Keys**
+******
+
+Keys are the columns that are used to match multiple datasets. They are explicitly defined by the argument (by = "varname") within your join function. However, they do not need to be explicitly defined. If you do not explicitly define it, dplyr will join the datasets across all possible keys (i.e., all columns that have the same name across both datasets) and will tell you in the output what variables it joined the datasets by. 
+
+For example, we have two datasets: meets and competitors. If we use the `glimpse` function on both datasets, we can see that the key would be "MeetID" because that is the only variable that matches both datasets.
+
+```{r}
+glimpse(meets)
+glimpse(competitors)
+```
+
+You'll learn about the different join functions below, but see what happens when join the two datasets with and without explicitly defining the key.
+
+```{r}
+left_join(meets, competitors, by = "MeetID")
+left_join(meets, competitors)
+```
+
+For the second join, dplyr was able to figure out that "MeetID" was the key variable!
+
+##Mismatched key names
+
+If keys are named differently across datasets, you can explicitly say they are the same by using the following code:
+
+```{r}
+competitors2 <- competitors
+competitors2$MeetNum <- competitors2$MeetID
+
+left_join(meets, competitors2, by = c("MeetID" = "MeetNum"))
+```
+
+In this case, it would retain "MeetID" as the name of the key column in the resulting dataset because that was from the primary dataset. 
+
+##Conflicting column names
+
+If you have two columns named the same thing across datasets that do *not* provide the same information, 
+you need to explicitly define the key variables to ensure those duplicate columns are not included as a key. dplyr will then perform the join correctly and add a suffix to the same-name column names in your resulting dataset (e.g., "colname.x", "colname.y"). Also, if you want a custom suffix, you can explicitly call it with the suffix argument:
+
+```{r}
+meets2 <- meets
+meets2$Name <- meets2$MeetName
+
+left_join(meets2, competitors, by = "MeetID") %>%
+  select(Name.x, Name.y) #Just showing these columns for illustrative purposes
+```
+We can see that it did *not* think Name was a key variable so it added the suffix ".x" and ".y" to each Name variable to differentiate them. If you want a custom suffix, you can explicitly call it with the suffix argument:
+
+```{r}
+left_join(meets2, competitors, by = "MeetID", suffix = c("Meet", "Competitor"))  %>%
+  select(NameMeet, NameCompetitor)
+```
+
+Alternatively, you can always just rename them afterwards:
+
+```{r}
+meets2 %>%
+  left_join(competitors, by = "MeetID") %>%
+  rename(NameMeet = Name.x, Name = Name.y) %>%
+  select(NameMeet, Name)
+```
+
+#**Types of Joins**
+******
+
+##*Mutating joins*
+Mutating joins are considered mutating joins because they add column(s). 
+
+###left_join and right_join
+`left_join` returns all rows from the first dataset and all the columns from both datasets.
+`right_join` returns all rows from the second dataset and all the columns from both datasets.
+
+In the following example, we test the meets_full dataset (which has information for all Open Powerlifting meets) with the competitors dataset (which only has information for competitors from the 2015-2017 USAPL Raw National Championships). 
+
+```{r}
+left_join(meets_full, competitors, by = "MeetID")
+right_join(meets_full, competitors, by = "MeetID")
+```
+
+Notice how using `left_join` results in 11,995 rows while using `right_join` results in 3,516 rows. This is because the left_join uses all rows for the meets_full dataset (8482 meets) and then adds in columns when it can match on the "MeetID" key, which adds information of the 3516 competitors in the 3 largest USAPL meets, duplicating each meet row for each competitor row for the 3 USAPL raw championships. 
+
+The `right_join` results in only the data for the 3,516 competitors because it starts with all rows from the second (right) dataset and then adds columns from the first (left) dataset.
+
+Furthermore, `left_join` and `right_join` essentially do the same thing if you flip the dataset order. We can test this using the `setequal` function.
+
+```{r}
+setequal(left_join(meets_full, competitors, by = "MeetID"),
+         right_join(competitors, meets_full, by = "MeetID"))
+```
+Note that we could also use the `identical` function instead of `setequal`, but `setequal` has the added benefit of not requiring row order to be identical.
+
+###inner_join
+`inner_join` is an *exclusive join* and only joins data that match both datasets.
+
+```{r}
+inner_join(meets_full, competitors, by = "MeetID")
+inner_join(competitors, meets_full, by = "MeetID")
+```
+
+The `inner_join` function returns the same data regardless of the order of the dataframes, but the order of the columns change depending on which dataframe is the primary dataframe. 
+
+###full_join
+`full_join` is an *inclusive join* and combines all rows regardless if there's matching data in the other dataset. 
+
+```{r}
+full_join(meets_full, competitors, by = "MeetID")
+full_join(competitors, meets_full, by = "MeetID")
+```
+
+We can see these datasets are identical.
+
+```{r}
+setequal(full_join(meets_full, competitors, by = "MeetID"),
+         full_join(competitors, meets_full, by = "MeetID"))
+```
+
+##*Filtering joins*
+These joins are called filtering joins because they provide data from the primary dataframe that has been filtered based on the secondary dataframe. These are useful to see which data does match (`semi_join`) or does not match (`anti_join`) across dataframes. 
+
+###semi_join
+`semi_join` only shows the rows from the first dataframe that has data in the second data frame.
+
+```{r}
+semi_join(meets_full, competitors, by = "MeetID")
+semi_join(competitors, meets_full, by = "MeetID")
+```
+
+The first `semi_join` function shows that there are only 3 rows in the meets_full dataframe that has data in the competitors dataframe. 
+
+The second `semi_join` function shows that all 3,516 rows in the competitors dataframe has data in the meets_full dataframe.
+
+###anti_join 
+
+`anti_join` shows only the rows from the first dataframe that does NOT have data in the second dataframe.
+
+In the following example, we see that there are 8,479 meets that do not have competitors data in the competitors dataframe I created. If there are 8,482 meets total and 8,479 meets in the resulting dataframe, then we have only have competitors data on 3 meets total.
+
+```{r}
+anti_join(meets_full, competitors, by = "MeetID")
+```
+
+###Counting rows
+Both of the filtering joins are useful to check for matching/mismatching data. While we can see that information in the first row of the resulting datasets, perhaps we don't care about seeing the dataset but only want to know the resulting number. We can do that with the following code:
+
+```{r}
+meets_full %>%
+  semi_join(competitors, by = "MeetID") %>%
+  nrow()
+```
+
+##*Set operations*
+Used when two datasets have the exact same variables (colnames) and you want to add rows, not columns. 
+
+###union
+Returns every row that appears in either dataset. However, if the same row appears multiple times, it will only provide that row once (removes duplicates).
+
+The following code takes the males and females datasets and uses `union` to combine males *and* females. 
+
+```{r}
+union(males, females)
+```
+
+###intersect
+Returns every row that appears in both datasets.
+
+In the following code, I have created datasets with just the names and sexes of competitors to see which competitors competed in both the USAPL 2015 and 2017 Raw National Championships. We can see that 199 people competed in both 2015 and 2017.
+
+```{r}
+intersect(usapl15_names, usapl17_names)
+```
+
+###setdiff
+Returns every row that appears in the first dataset but not the second. 
+
+Let's use the same datasets we did for `intersect` but now see who competed in 2015 and did not return for 2017. It should be the difference of the total competitors in 2015 minus the 199 who also competed in 2017.
+
+```{r}
+setdiff(usapl15_names, usapl17_names)
+```
+
+###Putting it all together
+If we put all of the information together, we should see that `union` should equal both `setdiff` plus `intersect`.
+
+```{r}
+sumall <- nrow(intersect(usapl15_names, usapl17_names)) +
+          nrow(setdiff(usapl15_names, usapl17_names)) +
+          nrow(setdiff(usapl17_names, usapl15_names))
+
+nrow(union(usapl15_names, usapl17_names)) == sumall
+```
+Similarly, `setdiff` and `intersect` should be able to equal the total number of people in each dataframe.
+```{r}
+sum15 <- nrow(intersect(usapl15_names, usapl17_names)) +
+         nrow(setdiff(usapl15_names, usapl17_names))
+
+nrow(usapl15_names) == sum15
+
+sum17 <- nrow(intersect(usapl17_names, usapl15_names)) +
+         nrow(setdiff(usapl17_names, usapl15_names))
+
+nrow(usapl17_names) == sum17
+```
+
+##*Binds*
+Binds are used when datasets have the exact same columns or the exact same rows in the same order. cbind() and rbind() can do this work, but dplyr's functions are faster, returns tibbles instead of dataframes, are more flexible, can handle lists of dataframes, and has the added functionality of the .id argument which can add which dataframe the data came from.
+
+###bind_cols
+Similar to `cbind`, `bind_cols` adds columns from the second dataset to the right of the columns from the second dataset. This is a lazy join and is very risky because it requires rows in both datasets to be in the same order! It is much better to use a mutating join with a key variable.
+
+```{r}
+bind_cols(peopledata, liftingdata)
+```
+
+###bind_rows
+Similar to `rbind`, `bind_rows` adds rows from the second dataset below the rows from the first dataset.
+
+```{r}
+bind_rows(males, females)
+```
+
+###.id argument
+Perhaps you would like to retain the information of which dataframe your data came from when using `bind_rows`. You can add the .id argument to achieve this.
+
+```{r}
+bind_rows("USAPL 2015" = usapl15, "USAPL 2017" = usapl17, .id = "USAPL")
+```
+
+Note that now we have a column at the beginning that ID's which dataframe it came from.
+
+#Missing/Duplicate values/columns
+******
+
+##Missing key values
+Imagine you have an NA in the key column of your primary dataset.There is nothing you can do to match it to the second dataset. You can filter out those missing rows before joining:
+
+df1 %>%
+  filter(!is.na(keyvar)) %>%
+  left_join(df2, by = "keyvar")
+
+##Missing key columns
+If you do not have a matching key column in the matching dataset, you cannot match the two datasets. But if you have a matching key column in the matching dataset that is simply named something else, you can define that in the join. 
+
+Othertimes the rownames are stored in the row.names attribute. This is not a tidy way to store data. You can pull that into a column like so:
+
+df1 %>%
+  rownames_to_column(var = "keyvar")
+
+##Duplicate key values
+Sometimes there are duplicate key values for a reason. dplyr will return every combination of key value matches across datasets in this case. 
+
+#Joining Multiple Datasets
+There are multiple methods for combining multiple datasets. We could do this with multiple pipes, and in fact we may be required to do this if keys are all over the place, but we also have other tools in our toolbox!
+
+##*Reduce*
+The purrr package has a useful function `reduce` that can combine lists of dataframes with the same join function. 
+
+```{r}
+list(squat, bench, deadlift) %>%
+  reduce(left_join, by = c("MeetID", "Name"))
+```
+
+##*Binding*
+We have three dataframes, one for each year of the USAPL Raw National Championships. We can put this into a list to apply a join function to all of them simultaneously! 
+
+```{r}
+usapl <- list(usapl15, usapl16, usapl17)
+
+usapl %>%
+  bind_rows(.id = "usapl")
+```
+
+#merge
+Base R has the `merge` function that has the same functions as the mutating joins above. This is shown for illustrative purposes, but I recommend using the dplyr functions and not `merge`.
+
+```{r}
+setequal(left_join(meets, competitors, by = "MeetID"), 
+         merge(meets, competitors, by = "MeetID", all.x = TRUE, all.y = FALSE))
+
+setequal(right_join(meets, competitors, by = "MeetID"), 
+         merge(meets, competitors, by = "MeetID", all.x = FALSE, all.y = TRUE))
+
+setequal(inner_join(meets, competitors, by = "MeetID"),
+         merge(meets, competitors, by = "MeetID", all = FALSE))
+
+setequal(full_join(meets, competitors, by = "MeetID"),
+         merge(meets, competitors, by = "MeetID", all = TRUE))
+```
