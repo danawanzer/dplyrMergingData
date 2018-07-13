@@ -65,7 +65,6 @@ deadlift <- competitorsdistinct %>%
 ```
 
 #**Keys**
-******
 
 Keys are the columns that are used to match multiple datasets. They are explicitly defined by the argument (by = "varname") within your join function. However, they do not need to be explicitly defined. If you do not explicitly define it, dplyr will join the datasets across all possible keys (i.e., all columns that have the same name across both datasets) and will tell you in the output what variables it joined the datasets by. 
 
@@ -127,7 +126,6 @@ meets2 %>%
 ```
 
 #**Types of Joins**
-******
 
 ##*Mutating joins*
 Mutating joins are considered mutating joins because they add column(s). 
@@ -294,7 +292,6 @@ bind_rows("USAPL 2015" = usapl15, "USAPL 2017" = usapl17, .id = "USAPL")
 Note that now we have a column at the beginning that ID's which dataframe it came from.
 
 #Missing/Duplicate values/columns
-******
 
 ##Missing key values
 Imagine you have an NA in the key column of your primary dataset.There is nothing you can do to match it to the second dataset. You can filter out those missing rows before joining:
